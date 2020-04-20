@@ -63,7 +63,7 @@
         <dependency>
             <groupId>com.rabbitmq</groupId>
             <artifactId>amqp-client</artifactId>
-            <version>3.6.5</version>
+            <version>4.8.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.springframework.amqp/spring-rabbit -->
         <dependency>
@@ -76,13 +76,13 @@
         <dependency>
             <groupId>org.springframework.amqp</groupId>
             <artifactId>spring-amqp</artifactId>
-            <version>1.6.5.RELEASE</version>
+            <version>1.7.11.RELEASE</version>
         </dependency>
 
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
-            <version>1.2.7</version>
+            <version>1.2.25</version>
         </dependency>
 
         <dependency>
