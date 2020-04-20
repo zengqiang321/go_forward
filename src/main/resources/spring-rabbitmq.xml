@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xmlns:task="http://www.springframework.org/schema/task"
+       xmlns:rabit="http://www.springframework.org/schema/rabbit"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/rabbit
+        http://www.springframework.org/schema/rabbit/spring-rabbit.xsd
+        http://www.springframework.org/schema/task
+        http://www.springframework.org/schema/task/spring-task.xsd">
+
+    <!--默认消息中心配置开始-->
+    <rabbit:connection-factory id="connectionFactory" connection-timeout="2000"
+                               host="${rabbitmq.proxy}" port="${rabbitmq.proxy.port}"
+                               username="${rabbitmq.username}" password="${rabbitmq.password}"/>
+
+
+    <!--定义 rabbit templte 用于数据的接收和发送-->
+    <rabit:template id="rabbitTemplate" connection-factory="connectionFactory" exchange="jollychic.topic"/>
+
+    <!--通过指定下面的admin信息，当前producer中的exchange和queue会在rabbitmq服务器上自动生成 -->
+    <rabbit:admin connection-factory="connectionFactory" id="rabbitAdmin"/>
+    <!--默认消息中心配置结束-->
+
+    <task:executor id="mqExecutor" keep-alive="${rabbitmq.executor.keep.alive}"
+                   pool-size="${rabbitmq.executor.pool.size}" queue-capacity="${rabbitmq.executor.queue.capacity}"
+                   rejection-policy="CALLER_RUNS"/>
+
+    <rabbit:queue  id="timeLiveQueue" name="add.cart.time.live.queue"  durable="true" declared-by="rabbitAdmin">
+        <rabbit:queue-arguments >
+            <!--单位是ms-->
+            <entry key="x-message-ttl" value="60000" value-type="java.lang.Long"/>
+            <!--消息过期根据重新路由 -->
+            <entry key="x-dead-letter-exchange" value="directExchange"/>
+            <entry key="x-dead-letter-routing-key" value="add.cart.timer"/>
+        </rabbit:queue-arguments>
+    </rabbit:queue>
+
+    <rabbit:direct-exchange name="directExchange" declared-by="rabbitAdmin" auto-declare="true">
+        <rabbit:bindings>
+            <rabbit:binding key="add.cart.timer" queue="deadLetterQueue"/>
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <!--Dead Message Consumer-->
+    <bean id="deadLetterQueueConsumer" class="com.jack.rabbitmq.DeadLetterQueueConsumer"/>
+    <rabbit:queue id="deadLetterQueue" name="dead.letter.queue" durable="true"
+                  declared-by="rabbitAdmin"/>
+
+    <rabbit:topic-exchange name="jollychic.topic" durable="true" auto-delete="false" auto-declare="true" declared-by="rabbitAdmin">
+        <rabbit:bindings>
+            <rabbit:binding pattern="add.cart.time.live.queue" queue="timeLiveQueue"/>
+        </rabbit:bindings>
+    </rabbit:topic-exchange>
+
+
+
+    <!--&lt;!&ndash;监听&ndash;&gt;-->
+    <rabbit:listener-container connection-factory="connectionFactory" acknowledge="manual" task-executor="mqExecutor"
+                               auto-startup="true">
+        <rabbit:listener queues="deadLetterQueue" ref="deadLetterQueueConsumer"/>
+    </rabbit:listener-container>
+
+</beans>

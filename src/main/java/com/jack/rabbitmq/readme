@@ -1,0 +1,42 @@
+场景： 一个秒杀商品，用户加购成功后锁定一个秒杀名额，用户若需要在5分钟内没有下单需要释放名额。
+如何简单，安全，高效的完成释放动作。
+各种延迟队列实现方式：
+    1.数据库定时轮训，检查数据是否超过有效期。  缺点：不及时，消耗大量的数据查询性能，还需要一个定时任务或者线程
+    2.利用JDK的DelayedQueue 实现延迟队列。  缺点：宕机数据丢失，不能分布式
+    3.利用Redis的Zset特性，定期检查。Zset是一个有序队列，每次取正排第一个判断。      缺点：分布式情况下出现重复取出和删除，只能单机部署。 2.ZSET在分布式Redis集群中特性不能使用
+    4.利用RabbitMQ  的死信队列。TTL + DTX (x-message-ttl、x-dead-letter-exchange、x-dead-letter-routing-key)。
+
+
+这里选用RabbimitMQ的死信队列。
+
+
+        <rabbit:queue  id="timeLiveQueue" name="add.cart.time.live.queue"  durable="true" declared-by="rabbitAdmin">
+            <rabbit:queue-arguments >
+                <!--单位是ms-->
+                <entry key="x-message-ttl" value="60000" value-type="java.lang.Long"/>
+                <!--消息过期根据重新路由 -->
+                <entry key="x-dead-letter-exchange" value="directExchange"/>
+                <entry key="x-dead-letter-routing-key" value="add.cart.timer"/>
+            </rabbit:queue-arguments>
+        </rabbit:queue>
+
+        <rabbit:direct-exchange name="directExchange" declared-by="rabbitAdmin" auto-declare="true">
+            <rabbit:bindings>
+                <rabbit:binding key="add.cart.timer" queue="deadLetterQueue"/>
+            </rabbit:bindings>
+        </rabbit:direct-exchange>
+
+        <rabbit:queue id="deadLetterQueue" name="dead.letter.queue" durable="true"
+                      declared-by="rabbitAdmin"/>
+
+        <rabbit:topic-exchange name="jollychic.topic" durable="true" auto-delete="false" auto-declare="true" declared-by="rabbitAdmin">
+            <rabbit:bindings>
+                <rabbit:binding pattern="add.cart.time.live.queue" queue="timeLiveQueue"/>
+            </rabbit:bindings>
+        </rabbit:topic-exchange>
+
+        <bean id="deadLetterQueueConsumer" class="com.jack.rabbitmq.DeadLetterQueueConsumer"/>
+        <rabbit:listener-container connection-factory="connectionFactory" acknowledge="manual" task-executor="mqExecutor"
+                                   auto-startup="true">
+            <rabbit:listener queues="deadLetterQueue" ref="deadLetterQueueConsumer"/>
+        </rabbit:listener-container>
