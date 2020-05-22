@@ -8,29 +8,32 @@ public class Car {
     private final String name;
     private final String money;
 
-    private Car(String name,String money){
+    private Car(String name, String money){
         this.money=money;
         this.name=name;
     }
 
-    public static class builder {
+    public static Builder create(){
+        return new Builder();
+    }
+
+    public static class Builder {
 
         private String name;
         private String money;
 
-        public builder setName(String name) {
+        public Builder setName(String name) {
             this.name = name;
             return this;
         }
 
-        public builder setMoney(String money) {
+        public Builder setMoney(String money) {
             this.money = money;
             return this;
         }
 
         public Car build() {
-            Car car = new Car(name,money);
-            return car;
+            return new Car(name,money);
         }
     }
 
