@@ -12,15 +12,27 @@
 
     <!-- 加载数据库配置文件-->
     <bean id="propertyConfigurer"
-          class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer" scope="">
+          class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
         <property name="locations">
             <list>
-                <value>classpath:rabbitmq.properties</value>
+                <!--<value>classpath:rabbitmq.properties</value>-->
+                <value>classpath:application.properties</value>
+                <value>classpath:db.properties</value>
             </list>
         </property>
     </bean>
 
-    <context:component-scan base-package="com.jack"/>
+    <!--<context:component-scan base-package="com.jack"/>-->
+    <context:component-scan base-package="com.jack.spring_code_src"/>
+
+    
+    <bean id="userService" class="com.jack.spring_code_src.UserService" init-method="init">
+        <property name="goodService" ref="goodsService"/>
+        <property name="username" value="${app.username}"/>
+    </bean>
+    <bean id="goodsService" class="com.jack.spring_code_src.GoodService">
+        <property name="userService" ref="userService"/>
+    </bean>
 
     <!--<aop:aspectj-autoproxy/>-->
 

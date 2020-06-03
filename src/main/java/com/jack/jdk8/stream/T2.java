@@ -92,6 +92,31 @@ public class T2 {
         Stream.of(names.split(",")).map(Person::new).forEach(System.out::println);
         Stream.of(names.split(",")).map(name->Person.build(name)).forEach(System.out::println);
         Stream.of(names.split(",")).map(Person::build).forEach(System.out::println);
+
+        //allmatch 若所以值大于5 返回true
+        boolean b = Stream.of(str.split(",")).mapToInt(Integer::parseInt).allMatch(x -> x > 5);
+        System.out.println(b);
+
+        //flatmap 两个集合合并
+        Stream.of(str.split(","),names.split(",")).flatMap(Arrays::stream).forEach(System.out::println);
+
+        //[1,2,3],[3,4]=>[1,3],[1,4],[2,3],[2,4],[3,3],[3,4]
+        Integer[] nums2 = {1, 2, 3};
+        Integer[] nums3 = {3, 4};
+        List<Integer> nums2List = Arrays.asList(nums2);
+        List<Integer> nums3List = Arrays.asList(nums3);
+
+        //使用2个map嵌套过滤
+        List<int[]> res2 = nums2List.stream().flatMap(i -> nums3List.stream().map(j -> new int[]{i, j})).collect(Collectors.toList());
+        System.out.println(res2.size());
+
+        System.out.println("--------------------------------");
+        //Demo3:针对Demo2和Demo1组合返回总和能被3整除的数对
+        //(2,4)和(3,3)是满足条件的
+        List<int[]> res3 = nums2List.stream().flatMap(i -> nums3List.stream().filter(j -> (i + j) % 3 == 0).map(j -> new int[]{i, j})).collect(Collectors.toList());
+        System.out.println(res3.size());
+
+
     }
 }
 

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!--<context:property-placeholder location="classpath:db.properties" />-->
+    <context:component-scan base-package="com.jack.transcation"/>
+
+    <bean id="abstractXADataSource" class="com.atomikos.jdbc.AtomikosDataSourceBean" init-method="init" destroy-method="close" abstract="true">
+        <property name="xaDataSourceClassName" value="com.alibaba.druid.pool.xa.DruidXADataSource"/>
+        <property name="xaProperties">
+            <props>
+                <prop key="driverClassName">com.mysql.jdbc.Driver</prop>
+                <!-- 配置初始化大小、最小、最大 -->
+                <prop key="initialSize">10</prop>
+                <prop key="minIdle">3</prop>
+                <prop key="maxActive">100</prop>
+                <!-- 配置获取连接等待超时的时间 -->
+                <prop key="maxWait">60000</prop>
+                <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+                <prop key="timeBetweenEvictionRunsMillis">60000</prop>
+                <!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+                <prop key="minEvictableIdleTimeMillis">300000</prop>
+                <prop key="validationQuery">SELECT 'x'</prop>
+                <prop key="testWhileIdle">true</prop>
+                <prop key="testOnBorrow">false</prop>
+                <prop key="testOnReturn">false</prop>
+                <!-- 配置监控统计拦截的filters -->
+                <prop key="filters">stat</prop>
+            </props>
+        </property>
+    </bean>
+
+    <!-- 配置数据源一 -->
+    <bean id="dataSourceOne" parent="abstractXADataSource">
+        <property name="uniqueResourceName">
+            <value>dataSourceOne</value>
+        </property>
+        <property name="xaProperties">
+            <props>
+                <prop key="url">${druid.jdbcUrl}</prop>
+                <prop key="username">${druid.username}</prop>
+                <prop key="password">${druid.password}</prop>
+            </props>
+        </property>
+    </bean>
+
+    <!--配置数据源二-->
+    <bean id="dataSourceTwo" parent="abstractXADataSource">
+        <property name="uniqueResourceName">
+            <value>dataSourceTwo</value>
+        </property>
+        <property name="xaProperties">
+            <props>
+                <prop key="url">${druid.jdbcUrl}</prop>
+                <prop key="username">${druid.username}</prop>
+                <prop key="password">${druid.password}</prop>
+            </props>
+        </property>
+    </bean>
+
+    <!--配置分布式事务-->
+    <bean id="atomikosTransactionManager" class="com.atomikos.icatch.jta.UserTransactionManager" init-method="init" destroy-method="close">
+        <property name="forceShutdown" value="false"/>
+    </bean>
+    <bean id="atomikosUserTransaction" class="com.atomikos.icatch.jta.UserTransactionImp">
+        <property name="transactionTimeout" value="3000"/>
+    </bean>
+    <!--JTA事务管理器-->
+    <bean id="jtaTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
+        <property name="transactionManager">
+            <ref bean="atomikosTransactionManager"/>
+        </property>
+        <property name="userTransaction">
+            <ref bean="atomikosUserTransaction"/>
+        </property>
+        <property name="allowCustomIsolationLevels" value="true"/>
+    </bean>
+
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSourceOne"/>
+    </bean>
+
+    <bean id="jdbcTemplate2" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSourceTwo"/>
+    </bean>
+
+    <tx:advice id="txAdvice" transaction-manager="jtaTransactionManager">
+        <tx:attributes>
+            <tx:method name="update*" propagation="REQUIRED"/>
+            <tx:method name="save*" propagation="REQUIRED"/>
+            <tx:method name="insert*" propagation="REQUIRED"/>
+            <tx:method name="edit*" propagation="REQUIRED"/>
+            <tx:method name="delete*" propagation="REQUIRED"/>
+            <tx:method name="remove*" propagation="REQUIRED"/>
+            <tx:method name="atomic*" propagation="REQUIRED"/>
+            <tx:method name="get*" propagation="REQUIRED" read-only="true"/>
+        </tx:attributes>
+    </tx:advice>
+
+
+    <aop:config>
+        <aop:pointcut id="allServiceMethod" expression="execution(* com.jack.transcation..*.*(..))"/>
+        <aop:advisor pointcut-ref="allServiceMethod" advice-ref="txAdvice"/>
+    </aop:config>
+
+</beans>
